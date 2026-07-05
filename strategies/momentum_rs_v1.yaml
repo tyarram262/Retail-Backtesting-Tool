@@ -1,0 +1,60 @@
+# First real test case: mirrors the live momentum agent
+# (RS_20/RS_60 gates vs SPY/QQQ, max 4 positions, 10-20% sizing).
+#
+# >>> PLACEHOLDERS TO CORRECT <<<
+#   - universe.tickers: replace with the agent's actual watchlist
+#   - entry/exit threshold values (1.0 / 0.95) and stop percentages (8 / 12):
+#     set to the agent's real values so reconciliation isn't comparing
+#     against a strategy you don't actually run
+
+schema_version: 1
+
+meta:
+  name: momentum_rs_v1
+  description: "RS_20/RS_60 gates vs SPY/QQQ, max 4 positions, weekly rebalance"
+
+universe:
+  tickers: [AAPL, MSFT, NVDA, AMD, META, GOOGL, AMZN, AVGO]
+
+signals:
+  # relative_strength is price-ratio RS:
+  #   RS = (P_t / P_{t-n}) / (B_t / B_{t-n});  > 1.0 = outperformed benchmark
+  rs_20_spy: {indicator: relative_strength, lookback_days: 20, benchmark: SPY}
+  rs_60_spy: {indicator: relative_strength, lookback_days: 60, benchmark: SPY}
+  rs_20_qqq: {indicator: relative_strength, lookback_days: 20, benchmark: QQQ}
+  rs_60_qqq: {indicator: relative_strength, lookback_days: 60, benchmark: QQQ}
+
+entry:
+  all:                                  # AND: every gate must pass
+    - {signal: rs_20_spy, op: gt, value: 1.0}
+    - {signal: rs_60_spy, op: gt, value: 1.0}
+    - {signal: rs_20_qqq, op: gt, value: 1.0}
+    - {signal: rs_60_qqq, op: gt, value: 1.0}
+
+exit:
+  any:                                  # OR: first trigger wins, reason recorded
+    - {signal: rs_20_spy, op: lt, value: 0.95}
+    - {rule: stop_loss, pct: 8}
+    - {rule: trailing_stop, pct: 12}
+
+ranking:                                # when signals exceed open slots
+  by: rs_60_spy
+  order: desc
+
+sizing:
+  method: equal_weight                  # target = min(1/positions_held, max), floor min
+  max_positions: 4
+  max_weight_pct: 20
+  min_weight_pct: 10
+
+rebalance:
+  frequency: weekly
+  day_of_week: monday
+
+execution:
+  signal_timing: close                  # signals on close of day T
+  fill_timing: next_open                # fills at open of day T+1 + slippage
+
+costs:                                  # always applied, echoed into run records
+  slippage_bps: 5
+  commission_per_share: 0.0

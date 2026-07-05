@@ -1,0 +1,15 @@
+# Run config: HOW to evaluate a strategy (the strategy file says WHAT to trade).
+# Walk-forward here is rolling out-of-sample evaluation with fixed parameters:
+# train_months is indicator warm-up only — data is fetched from before `start`
+# so test windows tile [start, end] completely, with stats per window.
+
+schema_version: 1
+
+run:
+  start: 2023-01-01
+  end: 2026-06-30
+  initial_capital: 100000
+  walk_forward:
+    train_months: 12
+    test_months: 3
+    step_months: 3
